@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Thumbnail Face Blur",
+  "version": "1.0",
+  "description": "Blurs faces in YouTube thumbnails",
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.ytimg.com/*",
+    "*://*.gstatic.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["face-api.min.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["models/*"],
+      "matches": ["*://*.youtube.com/*"]
+    }
+  ]
+}
