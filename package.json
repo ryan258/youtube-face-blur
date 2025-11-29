@@ -1,0 +1,21 @@
+{
+  "name": "youtube-face-blur",
+  "version": "1.0.0",
+  "description": "Chrome extension to automatically blur faces in YouTube thumbnails",
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "chrome-extension",
+    "youtube",
+    "privacy",
+    "face-blur"
+  ],
+  "author": "Ryan Johnson",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5"
+  }
+}

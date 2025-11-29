@@ -16,7 +16,14 @@
   // IntersectionObserver for lazy loading
   let intersectionObserver;
 
-  // --- New Function to create an untainted image ---
+  /**
+   * Fetches an image and creates an untainted version using a Blob URL.
+   * This bypasses CORS restrictions for canvas manipulation.
+   *
+   * @param {string} imageUrl - The URL of the image to fetch.
+   * @returns {Promise<{image: HTMLImageElement, objectURL: string}>} A promise resolving to the image element and its object URL.
+   * @throws {Error} If the fetch fails or the image cannot be loaded.
+   */
   async function createUntaintedImage(imageUrl) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
@@ -51,7 +58,10 @@
   }
   // --- End of New Function ---
 
-  // Process the queue
+  /**
+   * Processes the queue of thumbnails to be blurred.
+   * Respects the MAX_CONCURRENT_PROCESSES limit.
+   */
   async function processQueue() {
     if (activeProcesses >= MAX_CONCURRENT_PROCESSES || processingQueue.length === 0) {
       return;
@@ -70,7 +80,11 @@
     }
   }
 
-  // Add to queue
+  /**
+   * Adds a thumbnail to the processing queue if it hasn't been processed yet.
+   *
+   * @param {HTMLImageElement} thumbnail - The thumbnail image element to enqueue.
+   */
   function enqueueThumbnail(thumbnail) {
     if (thumbnail.dataset.faceBlurred === "true" || thumbnail.dataset.processing === "true") return;
     thumbnail.dataset.processing = "true";
@@ -78,8 +92,11 @@
     processQueue();
   }
 
-  // Process a single thumbnail (Modified)
-  // Process a single thumbnail (Modified to skip likely previews)
+  /**
+   * Processes a single thumbnail: detects faces and applies a blur effect.
+   *
+   * @param {HTMLImageElement} thumbnail - The thumbnail image element to process.
+   */
   async function processSingleThumbnail(thumbnail) {
     // Double check in case it was processed while in queue
     if (thumbnail.dataset.faceBlurred === "true") {
@@ -201,7 +218,12 @@
     }
   }
 
-  // Load face-api.js models with retry logic
+  /**
+   * Loads the face-api.js models with a retry mechanism.
+   *
+   * @param {number} [retries=3] - Number of retry attempts.
+   * @param {number} [delay=1000] - Initial delay in ms for exponential backoff.
+   */
   async function loadModelsWithRetry(retries = 3, delay = 1000) {
     if (typeof faceapi === "undefined") {
       console.error("face-api.js library not found. Cannot load models.");
@@ -235,6 +257,9 @@
     console.error("Failed to load face detection models after multiple attempts.");
   }
 
+  /**
+   * Sets up the IntersectionObserver to lazy load thumbnails.
+   */
   function setupIntersectionObserver() {
     intersectionObserver = new IntersectionObserver((entries, observer) => {
       entries.forEach(entry => {
@@ -250,7 +275,9 @@
     });
   }
 
-  // Process all YouTube thumbnails on the page (No changes needed here)
+  /**
+   * Scans the document for YouTube thumbnails and observes them.
+   */
   function processYouTubeThumbnails() {
     const thumbnails = document.querySelectorAll(
       [
@@ -287,7 +314,13 @@
     }
   }
 
-  // Debounce function (No changes needed here)
+  /**
+   * Creates a debounced version of a function.
+   *
+   * @param {Function} func - The function to debounce.
+   * @param {number} wait - The delay in milliseconds.
+   * @returns {Function} The debounced function.
+   */
   function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -303,7 +336,12 @@
     DEBOUNCE_DELAY
   );
 
-  // Setup MutationObserver (No changes needed here)
+  /**
+   * Sets up a MutationObserver to detect DOM changes (new thumbnails).
+   * Optimized to target specific containers and break loops early.
+   *
+   * @returns {MutationObserver} The created observer.
+   */
   function setupMutationObserver() {
     const observer = new MutationObserver((mutations) => {
       let shouldProcess = false;
@@ -337,6 +375,9 @@
     return observer;
   }
 
+  /**
+   * Sets up listeners for SPA navigation events.
+   */
   function setupNavigationListeners() {
     // YouTube specific event
     window.addEventListener('yt-navigate-finish', () => {

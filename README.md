@@ -74,15 +74,55 @@ Current selectors:
 - `ytd-grid-video-renderer img`
 - `ytd-reel-item-renderer img`
 
+## Troubleshooting
+
+### Faces are not being blurred
+1. **Refresh the page**: Sometimes the extension needs a fresh page load to initialize.
+2. **Check your internet connection**: The extension needs to download face detection models on the first run.
+3. **Check console for errors**: Open Developer Tools (F12) -> Console. Look for errors starting with `[YouTube Face Blur]`.
+4. **YouTube Update**: If YouTube updated their layout, the extension might need an update. Check the [GitHub repository](https://github.com/ryanjohnson/youtube-face-blur) for updates.
+
+### Extension causes lag
+The extension is optimized for performance, but face detection is computationally expensive.
+- Try reducing the number of open YouTube tabs.
+- Ensure hardware acceleration is enabled in Chrome settings.
+
+## Privacy Policy
+
+**We value your privacy.**
+
+- **Local Processing**: All face detection and image processing happens locally on your device within your browser.
+- **No Data Collection**: This extension does not collect, store, or transmit any personal data, browsing history, or images.
+- **No Analytics**: We do not track how you use the extension.
+- **Permissions**: The permissions requested are strictly for accessing YouTube thumbnail images to apply the blur effect.
+
 ## Development
 
-See [ROADMAP.md](ROADMAP.md) for planned improvements and current development status.
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v16 or higher)
+- [npm](https://www.npmjs.com/)
 
-**Current Status**: 13/32 tasks completed
-- ✅ Phase 1: Critical Fixes (3/3)
-- ✅ Phase 2: Performance Optimizations (5/5)
-- ✅ Phase 3: Code Quality Improvements (5/5)
-- ⬜ Phase 4: Documentation & Tooling (0/4)
-- ⬜ Phase 5: Security Hardening (0/3)
-- ⬜ Phase 6: Testing Infrastructure (0/6)
-- ⬜ Phase 7: Future Enhancements (0/6)
+### Setup
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/ryanjohnson/youtube-face-blur.git
+   ```
+2. Install dependencies (for linting/formatting):
+   ```bash
+   npm install
+   ```
+
+### Linting & Formatting
+- Run linter: `npm run lint`
+- Format code: `npm run format`
+
+### Project Structure
+- `content.js`: Main logic for face detection and blurring.
+- `models/`: Pre-trained face-api.js models.
+- `manifest.json`: Chrome extension configuration.
+- `face-api.min.js`: Face detection library.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
