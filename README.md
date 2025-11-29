@@ -1,66 +1,105 @@
 # YouTube Thumbnail Face Blur
 
-A high-performance Chrome extension that automatically detects and blurs faces in YouTube thumbnail images to create a less distracting browsing experience.
+## Stop Getting Manipulated By Clickbait Faces
 
-## Features
+Tired of the endless parade of shocked expressions, exaggerated reactions, and AI-generated faces screaming for your attention? Every thumbnail designed to trigger you, distract you, and drag you down a rabbit hole you didn't ask for?
 
-- **Smart Face Detection**: Uses face-api.js with TinyFaceDetector for accurate, efficient face detection
-- **Lazy Loading**: Only processes thumbnails when they're visible or about to become visible
-- **Parallel Processing**: Handles multiple thumbnails concurrently (up to 3 at once) for faster performance
-- **Automatic Retry**: Recovers gracefully from network issues with exponential backoff
-- **Memory Efficient**: Proper cleanup of canvases and resources to prevent memory leaks
-- **SPA Navigation**: Handles YouTube's single-page application navigation seamlessly
+**Your brain deserves better.**
+
+This Chrome extension automatically detects and blurs faces in YouTube thumbnails, giving you back control over what grabs your attention. Browse YouTube without the constant visual assault of clickbait faces engineered to hijack your focus.
+
+### Why This Matters
+
+YouTube thumbnails have become a mental tax. Content creators have discovered that exaggerated facial expressions trigger our primal attention mechanisms - and they're weaponizing it. Every scroll becomes an exhausting gauntlet of manufactured outrage, fake surprise, and calculated shock.
+
+This extension removes that noise. You can finally browse based on **what you actually want to watch**, not what some algorithm thinks will manipulate you into clicking.
+
+## What You Get
+
+- **Instant Mental Relief**: No more visual clutter. No more manipulation. Just clean, distraction-free browsing.
+- **Automatic & Fast**: Processes thumbnails in real-time as you scroll. You won't even notice it working.
+- **100% Privacy**: Everything runs locally in your browser. Zero tracking. Zero data collection. Zero creepy surveillance.
+- **Lightweight Performance**: Smart lazy-loading means it only processes what you're actually looking at.
+- **Set & Forget**: Install once, benefit forever. No settings to fiddle with (unless you want to).
 
 ## Installation
 
-1. Download the extension files to your computer
-2. Download the face-api.js library from https://github.com/justadudewhohacks/face-api.js/tree/master/dist and place `face-api.min.js` in the extension directory
-3. Download the pre-trained models from https://github.com/justadudewhohacks/face-api.js/tree/master/weights:
-   - `tiny_face_detector_model` files
-   - `face_landmark_68_model` files
+**Quick Setup (5 minutes):**
 
-   Place them in a folder called `models` in the extension directory
-4. Open Chrome and go to `chrome://extensions/`
-5. Enable "Developer mode" (toggle in the top right)
-6. Click "Load unpacked" and select the extension directory
-7. Navigate to YouTube and the extension will automatically blur faces in thumbnails
+1. **Download this extension**
+   - Clone or download this repository to your computer
+
+2. **Get the AI models** (required for face detection)
+   - Download `face-api.min.js` from [here](https://github.com/justadudewhohacks/face-api.js/tree/master/dist) → put it in the extension folder
+   - Download these model files from [here](https://github.com/justadudewhohacks/face-api.js/tree/master/weights):
+     - `tiny_face_detector_model-shard1`
+     - `tiny_face_detector_model-weights_manifest.json`
+     - `face_landmark_68_model-shard1`
+     - `face_landmark_68_model-weights_manifest.json`
+   - Create a folder called `models` inside the extension folder
+   - Put all the model files in that `models` folder
+
+3. **Load the extension in Chrome**
+   - Open Chrome and type `chrome://extensions/` in the address bar
+   - Turn on "Developer mode" (toggle in the top right corner)
+   - Click "Load unpacked"
+   - Select the extension folder
+
+4. **Done!**
+   - Go to YouTube and watch the faces blur automatically
+   - No configuration needed
 
 ## How It Works
 
-The extension uses a sophisticated multi-stage approach:
+You install it. That's it. The extension does the rest.
 
-1. **Detection**: Uses face-api.js with TinyFaceDetector and 68-point facial landmark detection
-2. **Lazy Loading**: IntersectionObserver monitors thumbnails and only processes those near the viewport
-3. **Queue Management**: Thumbnails are processed in a queue with concurrency limiting (max 3 simultaneous)
-4. **CORS Handling**: Fetches images with a 15-second timeout to bypass CORS restrictions
-5. **Blur Application**: Detected faces are blurred using canvas filters with configurable padding
-6. **Cleanup**: Automatic cleanup of canvases, object URLs, and processing flags to prevent memory leaks
+**Behind the scenes** (for the curious):
+- Uses advanced face detection AI to identify faces in thumbnails
+- Only processes thumbnails you're actually looking at (not the entire page)
+- Blurs detected faces automatically as you scroll
+- Handles YouTube's endless scroll and navigation seamlessly
+- Cleans up after itself to keep your browser running smoothly
 
-## Performance
+## Why This Extension is Fast
 
-- **Parallel Processing**: Up to 3 thumbnails processed simultaneously
-- **Lazy Loading**: 200px viewport margin for smart preloading
-- **Optimized Observers**: MutationObserver targets specific YouTube containers (`ytd-app`) instead of entire document
-- **Network Resilience**: 15-second fetch timeout prevents hanging on slow connections
-- **Auto-Retry**: Model loading retries up to 3 times with exponential backoff
+Unlike basic image filters, this extension is **engineered for performance**:
 
-## Customization
+- **Smart Processing**: Only works on thumbnails near your screen, not everything on the page
+- **Parallel Power**: Processes multiple thumbnails at once without slowing down your browser
+- **Memory Safe**: Automatically cleans up resources, so your browser doesn't get sluggish
+- **Network Resilient**: Handles slow connections and retries failed operations automatically
+- **Optimized Detection**: Targets specific YouTube elements instead of scanning the entire page
 
-You can modify these constants in `content.js` to customize behavior:
+## Customization (Optional)
 
-- `BLUR_INTENSITY` (default: "15px"): Strength of the blur effect
-- `FACE_BLUR_PADDING` (default: 10): Pixels of padding around detected faces
-- `MAX_CONCURRENT_PROCESSES` (default: 3): Maximum number of simultaneous thumbnail processes
-- `FETCH_TIMEOUT` (default: 15000ms): Timeout for fetching thumbnail images
-- `DEBOUNCE_DELAY` (default: 250ms): Delay before processing new thumbnails after DOM changes
+Want more blur? Less blur? You can tweak it.
 
-## Technical Details
+Open `content.js` and modify these settings:
 
-- **Manifest Version**: 3
-- **Content Script**: Runs at `document_idle` for optimal performance
-- **Permissions**: Requires access to `youtube.com`, `ytimg.com`, and `gstatic.com` for image fetching
-- **Face Detection**: TinyFaceDetector with 0.5 score threshold
-- **Navigation Handling**: Listens to YouTube's `yt-navigate-finish` event and standard `popstate` events
+- **`BLUR_INTENSITY`** (default: "15px") - How blurry the faces get. Higher = more blur.
+- **`FACE_BLUR_PADDING`** (default: 10) - Extra pixels blurred around faces. Increase if faces aren't fully covered.
+- **`MAX_CONCURRENT_PROCESSES`** (default: 3) - How many thumbnails get processed at once. Lower this if you have a slower computer.
+
+<details>
+<summary><strong>Advanced Settings (for power users)</strong></summary>
+
+- `FETCH_TIMEOUT` (default: 15000ms) - How long to wait for thumbnail images to load
+- `DEBOUNCE_DELAY` (default: 250ms) - Delay before processing new thumbnails after scrolling
+
+</details>
+
+## Technical Details (For Developers)
+
+Built with performance and privacy as first-class concerns:
+
+- **Manifest Version 3**: Uses the latest Chrome extension standards
+- **Content Security Policy**: Restricts scripts to prevent XSS attacks
+- **Face Detection**: TinyFaceDetector with 68-point facial landmark detection
+- **Lazy Processing**: IntersectionObserver with 200px viewport margin
+- **Parallel Processing**: Queue-based concurrency limiting (max 3 simultaneous)
+- **Memory Management**: Automatic cleanup of canvases and object URLs
+- **Navigation Handling**: YouTube-specific event listeners (`yt-navigate-finish`) + standard popstate
+- **Permissions**: Only requests access to `youtube.com`, `ytimg.com`, and `gstatic.com` - nothing more
 
 ## Maintenance Note
 
@@ -76,25 +115,37 @@ Current selectors:
 
 ## Troubleshooting
 
-### Faces are not being blurred
-1. **Refresh the page**: Sometimes the extension needs a fresh page load to initialize.
-2. **Check your internet connection**: The extension needs to download face detection models on the first run.
-3. **Check console for errors**: Open Developer Tools (F12) -> Console. Look for errors starting with `[YouTube Face Blur]`.
-4. **YouTube Update**: If YouTube updated their layout, the extension might need an update. Check the [GitHub repository](https://github.com/ryanjohnson/youtube-face-blur) for updates.
+### Faces aren't getting blurred?
 
-### Extension causes lag
-The extension is optimized for performance, but face detection is computationally expensive.
-- Try reducing the number of open YouTube tabs.
-- Ensure hardware acceleration is enabled in Chrome settings.
+**First, try this:**
+1. Refresh the page (Ctrl+R or Cmd+R)
+2. Make sure you have an internet connection (the AI models download on first run)
+3. Give it a few seconds after the page loads
 
-## Privacy Policy
+**Still not working?**
+- Open Developer Tools (F12), click the Console tab, and look for any red error messages
+- YouTube might have updated their layout - check the [GitHub repo](https://github.com/ryanjohnson/youtube-face-blur) for updates
 
-**We value your privacy.**
+### Browser feels slow?
 
-- **Local Processing**: All face detection and image processing happens locally on your device within your browser.
-- **No Data Collection**: This extension does not collect, store, or transmit any personal data, browsing history, or images.
-- **No Analytics**: We do not track how you use the extension.
-- **Permissions**: The permissions requested are strictly for accessing YouTube thumbnail images to apply the blur effect.
+Face detection is CPU-intensive. Here's how to fix it:
+- Close unnecessary YouTube tabs (each one is processing faces)
+- Turn on hardware acceleration in Chrome settings (Settings → System → Use hardware acceleration)
+- Lower `MAX_CONCURRENT_PROCESSES` in content.js from 3 to 2 or 1
+
+## Privacy: Zero Compromises
+
+**Your data stays yours. Period.**
+
+This extension is built on a simple principle: **we don't want your data, and we don't need it.**
+
+- **100% Local Processing**: Every single face detection and blur operation happens entirely in your browser. Nothing leaves your computer.
+- **Zero Data Collection**: We don't collect it. We don't store it. We don't transmit it. Not your browsing history, not your watch history, not even anonymous usage stats.
+- **No Analytics**: No tracking pixels. No telemetry. No "anonymized" data harvesting. Absolutely nothing.
+- **No Network Calls**: The extension only touches YouTube to fetch thumbnail images for processing. That's it.
+- **Open Source**: The code is right here. Read it yourself. Verify everything we're saying.
+
+**Why?** Because surveillance capitalism is exhausting, and you shouldn't have to trade your privacy for a better YouTube experience.
 
 ## Development
 
@@ -121,6 +172,24 @@ The extension is optimized for performance, but face detection is computationall
 - `models/`: Pre-trained face-api.js models.
 - `manifest.json`: Chrome extension configuration.
 - `face-api.min.js`: Face detection library.
+
+---
+
+## Take Back Your Attention
+
+YouTube doesn't have to be an exhausting experience. You can browse for content you actually care about without getting visually assaulted by clickbait faces designed to manipulate you.
+
+Install this extension and reclaim your mental space.
+
+**Your focus is valuable. Protect it.**
+
+---
+
+## Contributing
+
+Found a bug? Want to improve the face detection? Pull requests are welcome.
+
+See [ROADMAP.md](ROADMAP.md) for planned features and development progress.
 
 ## License
 
