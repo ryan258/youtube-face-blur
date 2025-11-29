@@ -10,15 +10,27 @@
   ],
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/*"],
-      "js": ["face-api.min.js", "content.js"],
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "face-api.min.js",
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["models/*"],
-      "matches": ["*://*.youtube.com/*"]
+      "resources": [
+        "models/*"
+      ],
+      "matches": [
+        "*://*.youtube.com/*"
+      ]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }

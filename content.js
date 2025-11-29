@@ -20,6 +20,12 @@
    * Fetches an image and creates an untainted version using a Blob URL.
    * This bypasses CORS restrictions for canvas manipulation.
    *
+   * SECURITY NOTE: This function uses the extension's host permissions for
+   * *.ytimg.com and *.gstatic.com to fetch images. Content scripts with
+   * host permissions can bypass CORS restrictions, allowing us to draw the
+   * image to a canvas without tainting it, which is required for face-api.js
+   * to read pixel data.
+   *
    * @param {string} imageUrl - The URL of the image to fetch.
    * @returns {Promise<{image: HTMLImageElement, objectURL: string}>} A promise resolving to the image element and its object URL.
    * @throws {Error} If the fetch fails or the image cannot be loaded.
