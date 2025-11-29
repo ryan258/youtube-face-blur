@@ -7,6 +7,7 @@
   const FACE_DETECTION_OPTIONS = { scoreThreshold: 0.5 };
   const FETCH_TIMEOUT = 15000; // 15 seconds timeout for image fetching
   const MAX_CONCURRENT_PROCESSES = 3; // Limit parallel processing
+  const FACE_BLUR_PADDING = 10; // Padding around the detected face
 
   // State for queue management
   const processingQueue = [];
@@ -26,7 +27,7 @@
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch image: ${response.status} ${response.statusText} `
+          `Failed to fetch image: ${response.status} ${response.statusText}`
         );
       }
       const blob = await response.blob();
@@ -39,7 +40,7 @@
         };
         img.onerror = (err) => {
           URL.revokeObjectURL(objectURL); // Clean up on error
-          reject(new Error(`Failed to load image from object URL: ${err} `));
+          reject(new Error(`Failed to load image from object URL: ${err}`));
         };
         img.src = objectURL;
       });
@@ -101,8 +102,6 @@
       imageUrl.includes(".mp4") ||
       imageUrl.includes(".webm")
     ) {
-      // console.log('Skipping likely video preview:', imageUrl); // Optional: uncomment for debugging
-      // Don't mark as blurred, as the static image might reappear later
       delete thumbnail.dataset.processing;
       return; // Skip processing this URL
     }
@@ -152,18 +151,17 @@
       if (detections.length > 0) {
         for (const detection of detections) {
           const { box } = detection.detection;
-          const padding = 10;
           ctx.filter = `blur(${BLUR_INTENSITY})`;
           ctx.drawImage(
             untaintedImage,
-            box.x - padding,
-            box.y - padding,
-            box.width + padding * 2,
-            box.height + padding * 2,
-            box.x - padding,
-            box.y - padding,
-            box.width + padding * 2,
-            box.height + padding * 2
+            box.x - FACE_BLUR_PADDING,
+            box.y - FACE_BLUR_PADDING,
+            box.width + FACE_BLUR_PADDING * 2,
+            box.height + FACE_BLUR_PADDING * 2,
+            box.x - FACE_BLUR_PADDING,
+            box.y - FACE_BLUR_PADDING,
+            box.width + FACE_BLUR_PADDING * 2,
+            box.height + FACE_BLUR_PADDING * 2
           );
           ctx.filter = "none";
         }
@@ -203,30 +201,38 @@
     }
   }
 
-  // Load face-api.js models (No changes needed here)
-  async function loadModels() {
+  // Load face-api.js models with retry logic
+  async function loadModelsWithRetry(retries = 3, delay = 1000) {
     if (typeof faceapi === "undefined") {
       console.error("face-api.js library not found. Cannot load models.");
       return;
     }
 
     const modelUrl = chrome.runtime.getURL("models");
-    try {
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
-        faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
-      ]);
-      console.log("Face detection models loaded");
 
-      // Initialize IntersectionObserver
-      setupIntersectionObserver();
+    for (let i = 0; i < retries; i++) {
+      try {
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+          faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+        ]);
+        console.log("Face detection models loaded");
 
-      processYouTubeThumbnails();
-      setupMutationObserver();
-      setupNavigationListeners();
-    } catch (error) {
-      console.error("Failed to load face detection models:", error);
+        // Initialize IntersectionObserver
+        setupIntersectionObserver();
+
+        processYouTubeThumbnails();
+        setupMutationObserver();
+        setupNavigationListeners();
+        return; // Success
+      } catch (error) {
+        console.warn(`Failed to load models (attempt ${i + 1}/${retries}):`, error);
+        if (i < retries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i))); // Exponential backoff
+        }
+      }
     }
+    console.error("Failed to load face detection models after multiple attempts.");
   }
 
   function setupIntersectionObserver() {
@@ -262,7 +268,7 @@
         continue;
       }
 
-      if (!thumbnail.complete || !thumbnail.naturalWidth) {
+      if (!thumbnail.complete || !thumbnail.naturalWidth || !thumbnail.naturalHeight) {
         thumbnail.addEventListener(
           "load",
           () => {
@@ -345,8 +351,8 @@
 
   // Start loading models (No changes needed here)
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadModels);
+    document.addEventListener("DOMContentLoaded", () => loadModelsWithRetry());
   } else {
-    loadModels();
+    loadModelsWithRetry();
   }
 })(); // End of IIFE

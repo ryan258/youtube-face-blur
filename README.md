@@ -1,25 +1,88 @@
 # YouTube Thumbnail Face Blur
 
-This Chrome extension automatically detects and blurs faces in YouTube thumbnail images to create a less distracting browsing experience.
+A high-performance Chrome extension that automatically detects and blurs faces in YouTube thumbnail images to create a less distracting browsing experience.
+
+## Features
+
+- **Smart Face Detection**: Uses face-api.js with TinyFaceDetector for accurate, efficient face detection
+- **Lazy Loading**: Only processes thumbnails when they're visible or about to become visible
+- **Parallel Processing**: Handles multiple thumbnails concurrently (up to 3 at once) for faster performance
+- **Automatic Retry**: Recovers gracefully from network issues with exponential backoff
+- **Memory Efficient**: Proper cleanup of canvases and resources to prevent memory leaks
+- **SPA Navigation**: Handles YouTube's single-page application navigation seamlessly
 
 ## Installation
 
 1. Download the extension files to your computer
-2. Download the face-api.js library from https://github.com/justadudewhohacks/face-api.js/tree/master/dist and place face-api.min.js in the extension directory
-3. Download the pre-trained models from https://github.com/justadudewhohacks/face-api.js/tree/master/weights and place them in a folder called "models" in the extension directory
+2. Download the face-api.js library from https://github.com/justadudewhohacks/face-api.js/tree/master/dist and place `face-api.min.js` in the extension directory
+3. Download the pre-trained models from https://github.com/justadudewhohacks/face-api.js/tree/master/weights:
+   - `tiny_face_detector_model` files
+   - `face_landmark_68_model` files
+
+   Place them in a folder called `models` in the extension directory
 4. Open Chrome and go to `chrome://extensions/`
 5. Enable "Developer mode" (toggle in the top right)
 6. Click "Load unpacked" and select the extension directory
 7. Navigate to YouTube and the extension will automatically blur faces in thumbnails
 
-## Maintenance Note
+## How It Works
 
-YouTube frequently updates its website structure and class names. If the extension stops working after a YouTube update, the selectors in content.js may need to be updated to match YouTube's current DOM structure.
+The extension uses a sophisticated multi-stage approach:
 
-## How it works
+1. **Detection**: Uses face-api.js with TinyFaceDetector and 68-point facial landmark detection
+2. **Lazy Loading**: IntersectionObserver monitors thumbnails and only processes those near the viewport
+3. **Queue Management**: Thumbnails are processed in a queue with concurrency limiting (max 3 simultaneous)
+4. **CORS Handling**: Fetches images with a 15-second timeout to bypass CORS restrictions
+5. **Blur Application**: Detected faces are blurred using canvas filters with configurable padding
+6. **Cleanup**: Automatic cleanup of canvases, object URLs, and processing flags to prevent memory leaks
 
-The extension uses face-api.js, a JavaScript library for face detection, to identify faces in YouTube thumbnails. When a face is detected, the extension applies a blur effect to that specific area of the thumbnail.
+## Performance
+
+- **Parallel Processing**: Up to 3 thumbnails processed simultaneously
+- **Lazy Loading**: 200px viewport margin for smart preloading
+- **Optimized Observers**: MutationObserver targets specific YouTube containers (`ytd-app`) instead of entire document
+- **Network Resilience**: 15-second fetch timeout prevents hanging on slow connections
+- **Auto-Retry**: Model loading retries up to 3 times with exponential backoff
 
 ## Customization
 
-You can adjust the blur intensity by modifying the `BLUR_INTENSITY` constant in content.js. Higher values will create a stronger blur effect.
+You can modify these constants in `content.js` to customize behavior:
+
+- `BLUR_INTENSITY` (default: "15px"): Strength of the blur effect
+- `FACE_BLUR_PADDING` (default: 10): Pixels of padding around detected faces
+- `MAX_CONCURRENT_PROCESSES` (default: 3): Maximum number of simultaneous thumbnail processes
+- `FETCH_TIMEOUT` (default: 15000ms): Timeout for fetching thumbnail images
+- `DEBOUNCE_DELAY` (default: 250ms): Delay before processing new thumbnails after DOM changes
+
+## Technical Details
+
+- **Manifest Version**: 3
+- **Content Script**: Runs at `document_idle` for optimal performance
+- **Permissions**: Requires access to `youtube.com`, `ytimg.com`, and `gstatic.com` for image fetching
+- **Face Detection**: TinyFaceDetector with 0.5 score threshold
+- **Navigation Handling**: Listens to YouTube's `yt-navigate-finish` event and standard `popstate` events
+
+## Maintenance Note
+
+YouTube frequently updates its website structure and class names. If the extension stops working after a YouTube update, the selectors in `content.js` may need to be updated to match YouTube's current DOM structure.
+
+Current selectors:
+- `img.yt-core-image`
+- `ytd-thumbnail img`
+- `ytd-rich-grid-media img.yt-img-shadow`
+- `ytd-compact-video-renderer img`
+- `ytd-grid-video-renderer img`
+- `ytd-reel-item-renderer img`
+
+## Development
+
+See [ROADMAP.md](ROADMAP.md) for planned improvements and current development status.
+
+**Current Status**: 13/32 tasks completed
+- ✅ Phase 1: Critical Fixes (3/3)
+- ✅ Phase 2: Performance Optimizations (5/5)
+- ✅ Phase 3: Code Quality Improvements (5/5)
+- ⬜ Phase 4: Documentation & Tooling (0/4)
+- ⬜ Phase 5: Security Hardening (0/3)
+- ⬜ Phase 6: Testing Infrastructure (0/6)
+- ⬜ Phase 7: Future Enhancements (0/6)
