@@ -95,6 +95,7 @@
     if (thumbnail.dataset.faceBlurred === "true" || thumbnail.dataset.processing === "true") return;
     thumbnail.dataset.processing = "true";
     processingQueue.push(thumbnail);
+    console.log("[YouTube Face Blur] Enqueued thumbnail for processing:", thumbnail.src);
     processQueue();
   }
 
@@ -129,6 +130,8 @@
       return; // Skip processing this URL
     }
     // --- End of check ---
+
+    console.log("[YouTube Face Blur] Processing thumbnail:", imageUrl);
 
     let untaintedImageData = null; // To store image and objectURL
     let canvas = null;
@@ -170,6 +173,8 @@
           new faceapi.TinyFaceDetectorOptions(FACE_DETECTION_OPTIONS)
         )
         .withFaceLandmarks();
+
+      console.log(`[YouTube Face Blur] Detection complete. Found ${detections.length} faces for`, imageUrl);
 
       if (detections.length > 0) {
         for (const detection of detections) {
@@ -271,6 +276,7 @@
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           const thumbnail = entry.target;
+          console.log("[YouTube Face Blur] Thumbnail entered viewport:", thumbnail.src);
           observer.unobserve(thumbnail);
           enqueueThumbnail(thumbnail);
         }
@@ -295,6 +301,7 @@
         "ytd-reel-item-renderer img",
       ].join(", ")
     );
+    console.log(`[YouTube Face Blur] Scanning for thumbnails... Found ${thumbnails.length} candidates.`);
 
     for (const thumbnail of thumbnails) {
       if (thumbnail.dataset.faceBlurred || thumbnail.dataset.processing || thumbnail.dataset.observed) {
