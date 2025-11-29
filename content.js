@@ -5,11 +5,17 @@
   const DEBOUNCE_DELAY = 250;
   const SPA_NAVIGATION_DELAY = 500;
   const FACE_DETECTION_OPTIONS = { scoreThreshold: 0.5 };
+  const FETCH_TIMEOUT = 15000; // 15 seconds timeout for image fetching
 
   // --- New Function to create an untainted image ---
   async function createUntaintedImage(imageUrl) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(imageUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         throw new Error(
           `Failed to fetch image: ${response.status} ${response.statusText}`
@@ -25,12 +31,12 @@
         };
         img.onerror = (err) => {
           URL.revokeObjectURL(objectURL); // Clean up on error
-          reject(`Failed to load image from object URL: ${err}`);
+          reject(new Error(`Failed to load image from object URL: ${err}`));
         };
         img.src = objectURL;
       });
     } catch (fetchError) {
-      console.error("Fetch error for image:", imageUrl, fetchError);
+      clearTimeout(timeoutId); // Clear timeout if fetch fails before timeout
       throw fetchError; // Re-throw fetch errors
     }
   }
@@ -40,6 +46,12 @@
   // Process a single thumbnail (Modified to skip likely previews)
   async function processSingleThumbnail(thumbnail) {
     if (thumbnail.dataset.faceBlurred) return;
+
+    // Validate face-api library
+    if (typeof faceapi === "undefined") {
+      console.error("face-api.js is not loaded. Skipping processing.");
+      return;
+    }
 
     // --- Add check for preview URLs ---
     const imageUrl = thumbnail.src;
@@ -118,9 +130,12 @@
       // Mark the ORIGINAL thumbnail as processed
       thumbnail.dataset.faceBlurred = "true";
     } catch (error) {
-      // Check if the error is the specific fetch error we expect for previews
-      if (error instanceof TypeError && error.message === "Failed to fetch") {
-        console.warn("Fetch failed (likely preview skipped):", imageUrl);
+      // Check if the error is the specific fetch error we expect for previews or timeouts
+      if (error.name === "AbortError") {
+        console.warn("Fetch aborted (timeout):", imageUrl);
+      } else if (error instanceof TypeError) {
+        // Generic network/fetch error (replaces brittle string check)
+        console.warn("Fetch failed (network error):", imageUrl);
       } else {
         // Log other unexpected errors more prominently
         console.error(
@@ -140,6 +155,11 @@
 
   // Load face-api.js models (No changes needed here)
   async function loadModels() {
+    if (typeof faceapi === "undefined") {
+      console.error("face-api.js library not found. Cannot load models.");
+      return;
+    }
+
     const modelUrl = chrome.runtime.getURL("models");
     try {
       await Promise.all([
