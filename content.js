@@ -6,6 +6,14 @@
   const SPA_NAVIGATION_DELAY = 500;
   const FACE_DETECTION_OPTIONS = { scoreThreshold: 0.5 };
   const FETCH_TIMEOUT = 15000; // 15 seconds timeout for image fetching
+  const MAX_CONCURRENT_PROCESSES = 3; // Limit parallel processing
+
+  // State for queue management
+  const processingQueue = [];
+  let activeProcesses = 0;
+
+  // IntersectionObserver for lazy loading
+  let intersectionObserver;
 
   // --- New Function to create an untainted image ---
   async function createUntaintedImage(imageUrl) {
@@ -18,7 +26,7 @@
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch image: ${response.status} ${response.statusText}`
+          `Failed to fetch image: ${response.status} ${response.statusText} `
         );
       }
       const blob = await response.blob();
@@ -31,7 +39,7 @@
         };
         img.onerror = (err) => {
           URL.revokeObjectURL(objectURL); // Clean up on error
-          reject(new Error(`Failed to load image from object URL: ${err}`));
+          reject(new Error(`Failed to load image from object URL: ${err} `));
         };
         img.src = objectURL;
       });
@@ -42,14 +50,46 @@
   }
   // --- End of New Function ---
 
+  // Process the queue
+  async function processQueue() {
+    if (activeProcesses >= MAX_CONCURRENT_PROCESSES || processingQueue.length === 0) {
+      return;
+    }
+
+    activeProcesses++;
+    const thumbnail = processingQueue.shift();
+
+    try {
+      await processSingleThumbnail(thumbnail);
+    } catch (err) {
+      console.error("Error processing queued thumbnail:", err);
+    } finally {
+      activeProcesses--;
+      processQueue(); // Process next item
+    }
+  }
+
+  // Add to queue
+  function enqueueThumbnail(thumbnail) {
+    if (thumbnail.dataset.faceBlurred === "true" || thumbnail.dataset.processing === "true") return;
+    thumbnail.dataset.processing = "true";
+    processingQueue.push(thumbnail);
+    processQueue();
+  }
+
   // Process a single thumbnail (Modified)
   // Process a single thumbnail (Modified to skip likely previews)
   async function processSingleThumbnail(thumbnail) {
-    if (thumbnail.dataset.faceBlurred) return;
+    // Double check in case it was processed while in queue
+    if (thumbnail.dataset.faceBlurred === "true") {
+      delete thumbnail.dataset.processing;
+      return;
+    }
 
     // Validate face-api library
     if (typeof faceapi === "undefined") {
       console.error("face-api.js is not loaded. Skipping processing.");
+      delete thumbnail.dataset.processing;
       return;
     }
 
@@ -63,11 +103,13 @@
     ) {
       // console.log('Skipping likely video preview:', imageUrl); // Optional: uncomment for debugging
       // Don't mark as blurred, as the static image might reappear later
+      delete thumbnail.dataset.processing;
       return; // Skip processing this URL
     }
     // --- End of check ---
 
     let untaintedImageData = null; // To store image and objectURL
+    let canvas = null;
 
     try {
       // Use the new function to get an untainted image
@@ -87,10 +129,11 @@
         if (untaintedImageData && untaintedImageData.objectURL) {
           URL.revokeObjectURL(untaintedImageData.objectURL); // Clean up
         }
+        delete thumbnail.dataset.processing;
         return;
       }
 
-      const canvas = document.createElement("canvas");
+      canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d", { willReadFrequently: true }); // Keep the hint
 
       canvas.width = untaintedImage.naturalWidth;
@@ -150,6 +193,13 @@
       if (untaintedImageData && untaintedImageData.objectURL) {
         URL.revokeObjectURL(untaintedImageData.objectURL);
       }
+      // Explicit canvas cleanup
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+        canvas = null;
+      }
+      delete thumbnail.dataset.processing;
     }
   }
 
@@ -167,15 +217,35 @@
         faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
       ]);
       console.log("Face detection models loaded");
+
+      // Initialize IntersectionObserver
+      setupIntersectionObserver();
+
       processYouTubeThumbnails();
       setupMutationObserver();
+      setupNavigationListeners();
     } catch (error) {
       console.error("Failed to load face detection models:", error);
     }
   }
 
+  function setupIntersectionObserver() {
+    intersectionObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const thumbnail = entry.target;
+          observer.unobserve(thumbnail);
+          enqueueThumbnail(thumbnail);
+        }
+      });
+    }, {
+      rootMargin: "200px 0px", // Start processing before it enters viewport
+      threshold: 0.01
+    });
+  }
+
   // Process all YouTube thumbnails on the page (No changes needed here)
-  async function processYouTubeThumbnails() {
+  function processYouTubeThumbnails() {
     const thumbnails = document.querySelectorAll(
       [
         "img.yt-core-image",
@@ -188,26 +258,26 @@
     );
 
     for (const thumbnail of thumbnails) {
-      if (thumbnail.dataset.faceBlurred) {
+      if (thumbnail.dataset.faceBlurred || thumbnail.dataset.processing || thumbnail.dataset.observed) {
         continue;
       }
+
       if (!thumbnail.complete || !thumbnail.naturalWidth) {
-        // Check visibility before adding listener - optional optimization
-        // const rect = thumbnail.getBoundingClientRect();
-        // if (rect.top < window.innerHeight && rect.bottom >= 0) { // Basic visibility check
         thumbnail.addEventListener(
           "load",
           () => {
-            if (!thumbnail.dataset.faceBlurred) {
-              processSingleThumbnail(thumbnail);
+            if (!thumbnail.dataset.faceBlurred && !thumbnail.dataset.observed) {
+              intersectionObserver.observe(thumbnail);
+              thumbnail.dataset.observed = "true";
             }
           },
           { once: true }
         );
-        // }
         continue;
       }
-      await processSingleThumbnail(thumbnail);
+
+      intersectionObserver.observe(thumbnail);
+      thumbnail.dataset.observed = "true";
     }
   }
 
@@ -234,9 +304,10 @@
       for (const mutation of mutations) {
         if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
           for (const node of mutation.addedNodes) {
+            // Check if node is an image or contains images
             if (
               node.nodeName === "IMG" ||
-              (node.nodeType === 1 && node.querySelector("img"))
+              (node.nodeType === 1 && (node.querySelector("img") || node.tagName.startsWith("YTD-")))
             ) {
               shouldProcess = true;
               break;
@@ -249,11 +320,27 @@
         debouncedProcessThumbnails();
       }
     });
-    observer.observe(document.body, {
+
+    // Target specific container if possible, otherwise fallback to body
+    const targetNode = document.querySelector('ytd-app') || document.body;
+
+    observer.observe(targetNode, {
       childList: true,
       subtree: true,
     });
     return observer;
+  }
+
+  function setupNavigationListeners() {
+    // YouTube specific event
+    window.addEventListener('yt-navigate-finish', () => {
+      setTimeout(debouncedProcessThumbnails, SPA_NAVIGATION_DELAY);
+    });
+
+    // Standard navigation events
+    window.addEventListener('popstate', () => {
+      setTimeout(debouncedProcessThumbnails, SPA_NAVIGATION_DELAY);
+    });
   }
 
   // Start loading models (No changes needed here)
@@ -262,14 +349,4 @@
   } else {
     loadModels();
   }
-
-  // Handle SPA navigation (No changes needed here)
-  let previousUrl = location.href;
-  const urlObserver = new MutationObserver(() => {
-    if (location.href !== previousUrl) {
-      previousUrl = location.href;
-      setTimeout(debouncedProcessThumbnails, SPA_NAVIGATION_DELAY);
-    }
-  });
-  urlObserver.observe(document, { subtree: true, childList: true });
 })(); // End of IIFE
