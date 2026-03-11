@@ -29,15 +29,9 @@ This extension removes that noise. You can finally browse based on **what you ac
 1. **Download this extension**
    - Clone or download this repository to your computer
 
-2. **Get the AI models** (required for face detection)
-   - Download `face-api.min.js` from [here](https://github.com/justadudewhohacks/face-api.js/tree/master/dist) → put it in the extension folder
-   - Download these model files from [here](https://github.com/justadudewhohacks/face-api.js/tree/master/weights):
-     - `tiny_face_detector_model-shard1`
-     - `tiny_face_detector_model-weights_manifest.json`
-     - `face_landmark_68_model-shard1`
-     - `face_landmark_68_model-weights_manifest.json`
-   - Create a folder called `models` inside the extension folder
-   - Put all the model files in that `models` folder
+2. **Verify the bundled assets are present**
+   - This repo already includes `face-api.min.js` and the `models/` directory needed for face detection
+   - If you copied the extension folder somewhere else, make sure those files came with it
 
 3. **Load the extension in Chrome**
    - Open Chrome and type `chrome://extensions/` in the address bar
@@ -54,10 +48,10 @@ This extension removes that noise. You can finally browse based on **what you ac
 You install it. That's it. The extension does the rest.
 
 **Behind the scenes** (for the curious):
-- Uses advanced face detection AI to identify faces in thumbnails
+- Uses a bundled face detection model to identify faces in thumbnails
 - Only processes thumbnails you're actually looking at (not the entire page)
 - Blurs detected faces automatically as you scroll
-- Handles YouTube's endless scroll and navigation seamlessly
+- Handles YouTube's endless scroll, lazy-loaded `srcset` updates, and SPA navigation
 - Cleans up after itself to keep your browser running smoothly
 
 ## Why This Extension is Fast
@@ -76,15 +70,15 @@ Want more blur? Less blur? You can tweak it.
 
 Open `content.js` and modify these settings:
 
-- **`BLUR_INTENSITY`** (default: "15px") - How blurry the faces get. Higher = more blur.
-- **`FACE_BLUR_PADDING`** (default: 10) - Extra pixels blurred around faces. Increase if faces aren't fully covered.
+- **`BLUR_INTENSITY`** (default: "18px") - How blurry the faces get. Higher = more blur.
+- **`FACE_BLUR_PADDING`** (default: 12) - Extra pixels blurred around faces. Increase if faces aren't fully covered.
 - **`MAX_CONCURRENT_PROCESSES`** (default: 3) - How many thumbnails get processed at once. Lower this if you have a slower computer.
 
 <details>
 <summary><strong>Advanced Settings (for power users)</strong></summary>
 
 - `FETCH_TIMEOUT` (default: 15000ms) - How long to wait for thumbnail images to load
-- `DEBOUNCE_DELAY` (default: 250ms) - Delay before processing new thumbnails after scrolling
+- `DEBOUNCE_DELAY` (default: 200ms) - Delay before processing new thumbnails after scrolling
 
 </details>
 
@@ -94,11 +88,12 @@ Built with performance and privacy as first-class concerns:
 
 - **Manifest Version 3**: Uses the latest Chrome extension standards
 - **Content Security Policy**: Restricts scripts to prevent XSS attacks
-- **Face Detection**: TinyFaceDetector with 68-point facial landmark detection
-- **Lazy Processing**: IntersectionObserver with 200px viewport margin
+- **Face Detection**: TinyFaceDetector bounding-box detection
+- **Lazy Processing**: IntersectionObserver with a 250px viewport margin
 - **Parallel Processing**: Queue-based concurrency limiting (max 3 simultaneous)
+- **Result Reuse**: Caches processed thumbnails by source URL to avoid reprocessing duplicates
 - **Memory Management**: Automatic cleanup of canvases and object URLs
-- **Navigation Handling**: YouTube-specific event listeners (`yt-navigate-finish`) + standard popstate
+- **Navigation Handling**: YouTube-specific event listeners (`yt-navigate-finish`), standard popstate, and source-aware thumbnail rescans
 - **Permissions**: Only requests access to `youtube.com`, `ytimg.com`, and `gstatic.com` - nothing more
 
 ## Maintenance Note
@@ -106,12 +101,17 @@ Built with performance and privacy as first-class concerns:
 YouTube frequently updates its website structure and class names. If the extension stops working after a YouTube update, the selectors in `content.js` may need to be updated to match YouTube's current DOM structure.
 
 Current selectors:
-- `img.yt-core-image`
+- `a#thumbnail img`
 - `ytd-thumbnail img`
-- `ytd-rich-grid-media img.yt-img-shadow`
-- `ytd-compact-video-renderer img`
-- `ytd-grid-video-renderer img`
-- `ytd-reel-item-renderer img`
+- `yt-lockup-view-model .yt-lockup-view-model__content-image img`
+- `yt-thumbnail-view-model img`
+- `ytd-rich-grid-media img.yt-core-image`
+- `ytd-video-renderer img.yt-core-image`
+- `ytd-compact-video-renderer img.yt-core-image`
+- `ytd-grid-video-renderer img.yt-core-image`
+- `ytd-playlist-renderer img.yt-core-image`
+- `ytd-radio-renderer img.yt-core-image`
+- `ytd-reel-item-renderer img.yt-core-image`
 
 ## Troubleshooting
 
@@ -119,7 +119,7 @@ Current selectors:
 
 **First, try this:**
 1. Refresh the page (Ctrl+R or Cmd+R)
-2. Make sure you have an internet connection (the AI models download on first run)
+2. Make sure the unpacked extension still includes `face-api.min.js` and the `models/` folder
 3. Give it a few seconds after the page loads
 
 **Still not working?**
@@ -194,4 +194,3 @@ See [ROADMAP.md](ROADMAP.md) for planned features and development progress.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
