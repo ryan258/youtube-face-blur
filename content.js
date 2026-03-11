@@ -172,18 +172,33 @@
     const processedSource = thumbnail.dataset.faceBlurProcessedSource || "";
     const observedSource = thumbnail.dataset.faceBlurObservedSource || "";
     const processingSource = thumbnail.dataset.faceBlurProcessingSource || "";
+    const retrySource = thumbnail.dataset.faceBlurRetrySource || "";
+
+    let sourceChanged = false;
 
     if (processedSource && processedSource !== source) {
       delete thumbnail.dataset.faceBlurProcessedSource;
       delete thumbnail.dataset.faceBlurStatus;
+      sourceChanged = true;
     }
 
     if (observedSource && observedSource !== source) {
       delete thumbnail.dataset.faceBlurObservedSource;
+      sourceChanged = true;
     }
 
     if (processingSource && processingSource !== source) {
       delete thumbnail.dataset.faceBlurProcessingSource;
+      sourceChanged = true;
+    }
+
+    if (retrySource && retrySource !== source) {
+      delete thumbnail.dataset.faceBlurRetrySource;
+      sourceChanged = true;
+    }
+
+    if (sourceChanged) {
+      delete thumbnail.dataset.faceBlurRetries;
     }
 
     return source;
@@ -194,6 +209,8 @@
   function applyBlurredImage(thumbnail, source, dataUrl) {
     thumbnail.dataset.faceBlurInternalUpdate = "true";
     markThumbnailProcessed(thumbnail, source, STATUS.BLURRED);
+    delete thumbnail.dataset.faceBlurRetries; // Clear retries on success
+    delete thumbnail.dataset.faceBlurRetrySource;
     thumbnail.removeAttribute("srcset"); // Srcset overrides src, so we must remove it
     thumbnail.src = dataUrl;
     
@@ -213,11 +230,6 @@
 
     if (cachedResult.status === STATUS.BLURRED) {
       applyBlurredImage(thumbnail, source, cachedResult.dataUrl);
-      return true;
-    }
-
-    if (cachedResult.status === STATUS.CLEAN) {
-      markThumbnailProcessed(thumbnail, source, STATUS.CLEAN);
       return true;
     }
 
@@ -289,8 +301,11 @@
    * CORS AND TAINTED CANVASES
    * If a canvas context draws an image from a different domain, it becomes "tainted",
    * and we can't extract pixel data (toURL) later due to browser security policies.
-   * Fetching the image via an AbortController and creating an Object URL avoids this
-   * because we execute a true cross-origin request first (assuming CORS headers allow it).
+   * 
+   * Fetching the image with fetch() and creating an Object URL doesn't bypass CORS 
+   * (the server MUST still return Access-Control-Allow-Origin: *). However, it ensures
+   * that *if* the fetch succeeds, the resulting Object URL is treated as a same-origin 
+   * resource by the canvas, preventing it from silently becoming tainted.
    */
   async function createUntaintedImage(imageUrl) {
     const controller = new AbortController();
@@ -456,7 +471,8 @@
 
       if (image.naturalWidth === 0 || image.naturalHeight === 0) {
         markThumbnailProcessed(thumbnail, source, STATUS.CLEAN);
-        cacheResult(source, { status: STATUS.CLEAN });
+        // We do not cache CLEAN results globally. A low-res image might be CLEAN,
+        // but a higher-res version of the same URL might reveal faces later.
         return;
       }
 
@@ -475,7 +491,10 @@
 
       if (detections.length === 0) {
         markThumbnailProcessed(thumbnail, source, STATUS.CLEAN);
-        cacheResult(source, { status: STATUS.CLEAN });
+        delete thumbnail.dataset.faceBlurRetries; // Clear retries on success
+        delete thumbnail.dataset.faceBlurRetrySource;
+        // We do not cache CLEAN results globally. A low-res image might be CLEAN,
+        // but a higher-res version of the same URL might reveal faces later.
         return;
       }
 
@@ -509,7 +528,21 @@
       } else {
         console.error("[YouTube Face Blur] Failed to blur thumbnail", source, error);
       }
-      markThumbnailProcessed(thumbnail, source, STATUS.FAILED);
+
+      // Instead of failing permanently on the first error, we use a retry counter
+      const retries = parseInt(thumbnail.dataset.faceBlurRetries || "0", 10);
+      if (retries < 3) {
+        thumbnail.dataset.faceBlurRetries = (retries + 1).toString();
+        thumbnail.dataset.faceBlurRetrySource = source;
+        // Clear processing source so it can be picked up again
+        delete thumbnail.dataset.faceBlurProcessingSource;
+        // Re-enqueue after an exponential backoff cooldown
+        window.setTimeout(() => {
+          if (thumbnail.isConnected) enqueueThumbnail(thumbnail);
+        }, 2000 * Math.pow(2, retries));
+      } else {
+        markThumbnailProcessed(thumbnail, source, STATUS.FAILED);
+      }
     } finally {
       // CRITICAL: MEMORY MANAGEMENT
       // Always revoke object URLs explicitly to avoid leaks
